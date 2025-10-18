@@ -119,37 +119,77 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Future<void> _pickAndUpload() async {
     setState(() => status = 'Picking files...');
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true, withData: true, type: FileType.any);
-    if (result == null) {
-      setState(() => status = 'Cancelled');
-      return;
+    try {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true, withData: true, type: FileType.any);
+      if (result == null || result.files.isEmpty) {
+        setState(() => status = 'No files selected');
+        return;
+      }
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() => status = 'Not logged in');
+        return;
+      }
+      setState(() => status = 'Uploading ${result.files.length} file(s)...');
+      
+      int successCount = 0;
+      for (int i = 0; i < result.files.length; i++) {
+        final file = result.files[i];
+        try {
+          setState(() => status = 'Uploading file ${i + 1}/${result.files.length}: ${file.name}');
+          final bytes = file.bytes;
+          if (bytes == null) {
+            print('No bytes for file: ${file.name}');
+            continue;
+          }
+          final meta = extractFromImageBytes(bytes);
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final ref = FirebaseStorage.instance.ref().child('uploads/${user.uid}/${timestamp}_${file.name}');
+          
+          print('Uploading to: ${ref.fullPath}');
+          print('File size: ${bytes.length} bytes');
+          
+          final uploadTask = ref.putData(bytes, SettableMetadata(customMetadata: {
+            'uploadedBy': user.uid,
+            'originalName': file.name,
+          }));
+          
+          // Add timeout and progress monitoring
+          await uploadTask.timeout(
+            const Duration(minutes: 2),
+            onTimeout: () {
+              throw Exception('Upload timeout for ${file.name}');
+            },
+          );
+          
+          print('Getting download URL...');
+          final url = await ref.getDownloadURL();
+          
+          print('Saving to Firestore...');
+          await FirebaseFirestore.instance.collection('media').add({
+            'uploaderUid': user.uid,
+            'uploaderEmail': user.email,
+            'uploadedAt': Timestamp.now(),
+            'downloadUrl': url,
+            'fileName': file.name,
+            'mimeType': file.extension,
+            'eventId': widget.eventId,
+            'takenAt': meta.takenAt,
+            'geo': meta.geo,
+          });
+          
+          successCount++;
+          print('Successfully uploaded: ${file.name}');
+        } catch (e) {
+          print('Error uploading ${file.name}: $e');
+          setState(() => status = 'Error uploading ${file.name}: $e');
+        }
+      }
+      setState(() => status = 'Uploaded $successCount of ${result.files.length} files');
+    } catch (e) {
+      print('Upload error: $e');
+      setState(() => status = 'Upload error: $e');
     }
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    setState(() => status = 'Uploading ${result.files.length} file(s)...');
-    for (final file in result.files) {
-      final bytes = file.bytes;
-      if (bytes == null) continue;
-      final meta = extractFromImageBytes(bytes);
-      final ref = FirebaseStorage.instance.ref().child('uploads/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_${file.name}');
-      await ref.putData(bytes, SettableMetadata(customMetadata: {
-        'uploadedBy': user.uid,
-        'originalName': file.name,
-      }));
-      final url = await ref.getDownloadURL();
-      await FirebaseFirestore.instance.collection('media').add({
-        'uploaderUid': user.uid,
-        'uploaderEmail': user.email,
-        'uploadedAt': Timestamp.now(),
-        'downloadUrl': url,
-        'fileName': file.name,
-        'mimeType': file.extension,
-        'eventId': widget.eventId,
-        'takenAt': meta.takenAt,
-        'geo': meta.geo,
-      });
-    }
-    setState(() => status = 'Done');
   }
 
   @override

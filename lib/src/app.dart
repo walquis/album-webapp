@@ -113,6 +113,57 @@ class _LoginScreenState extends State<_LoginScreen> {
 class AdminHome extends StatelessWidget {
   const AdminHome();
 
+  Future<void> _showEventSelector(BuildContext context) async {
+    // Get list of events
+    final eventsSnapshot = await FirebaseFirestore.instance
+        .collection('events')
+        .orderBy('startAt', descending: true)
+        .get();
+    
+    if (eventsSnapshot.docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No events found. Create an event first.')),
+      );
+      return;
+    }
+
+    // Show event selection dialog
+    final selectedEventId = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Event'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: eventsSnapshot.docs.length,
+            itemBuilder: (context, index) {
+              final doc = eventsSnapshot.docs[index];
+              final data = doc.data();
+              return ListTile(
+                title: Text(data['name'] ?? 'Untitled'),
+                subtitle: Text((data['startAt'] as Timestamp?)?.toDate().toString() ?? ''),
+                onTap: () => Navigator.pop(context, doc.id),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedEventId != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => UploadScreen(eventId: selectedEventId)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,7 +192,7 @@ class AdminHome extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const UploadScreen())),
+              onPressed: () => _showEventSelector(context),
               child: const Text('Upload media'),
             ),
           ],
