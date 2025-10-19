@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html show window;
 import 'models.dart';
 import 'services.dart';
 
@@ -17,6 +19,16 @@ class _AdminInviteScreenState extends State<AdminInviteScreen> {
   final InviteService _invites = InviteService();
   String? lastToken;
   String? status;
+
+  String _getInviteLink(String token, String email) {
+    if (kIsWeb) {
+      // Get current origin (protocol + host + port)
+      final origin = html.window.location.origin;
+      return '$origin/accept-invite?token=$token&email=${Uri.encodeComponent(email)}';
+    }
+    // Fallback for non-web platforms
+    return 'http://localhost:3000/accept-invite?token=$token&email=${Uri.encodeComponent(email)}';
+  }
 
   Future<void> _createEmailTemplate() async {
     // Create the email template if it doesn't exist
@@ -109,8 +121,7 @@ class _AdminInviteScreenState extends State<AdminInviteScreen> {
           'data': {
             'inviteToken': invite.token,
             'familyId': familyId,
-            'inviteLink':
-                'https://your-domain.com/accept-invite?token=${invite.token}&email=${Uri.encodeComponent(email)}',
+            'inviteLink': _getInviteLink(invite.token, email),
             'adminEmail': FirebaseAuth.instance.currentUser?.email ?? 'admin',
           },
         },
@@ -211,6 +222,8 @@ class _MemberAcceptInviteScreenState extends State<MemberAcceptInviteScreen> {
   final InviteService _invites = InviteService();
   final UserService _users = UserService();
   String? error;
+  bool _isLoading = false;
+  bool _isSuccess = false;
 
   @override
   void initState() {
@@ -221,14 +234,27 @@ class _MemberAcceptInviteScreenState extends State<MemberAcceptInviteScreen> {
   }
 
   Future<void> _accept() async {
-    setState(() => error = null);
+    if (!mounted) return;
+
+    setState(() {
+      error = null;
+      _isLoading = true;
+      _isSuccess = false;
+    });
+
     final email = emailController.text.trim();
     final token = tokenController.text.trim();
     final inviteDoc = await _invites.validateInvite(email: email, token: token);
     if (inviteDoc == null) {
-      setState(() => error = 'Invalid invite');
+      if (mounted) {
+        setState(() {
+          error = 'Invalid invite';
+          _isLoading = false;
+        });
+      }
       return;
     }
+
     try {
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
@@ -246,8 +272,23 @@ class _MemberAcceptInviteScreenState extends State<MemberAcceptInviteScreen> {
       );
       await _users.upsertUser(profile);
       await _invites.acceptInvite(inviteDoc.id, user.uid);
+
+      if (mounted) {
+        setState(() {
+          _isSuccess = true;
+          _isLoading = false;
+        });
+      }
+
+      // Give a moment for the auth state to update, then the parent will redirect
+      await Future.delayed(const Duration(seconds: 1));
     } on FirebaseAuthException catch (e) {
-      setState(() => error = e.message);
+      if (mounted) {
+        setState(() {
+          error = e.message;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -263,45 +304,81 @@ class _MemberAcceptInviteScreenState extends State<MemberAcceptInviteScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                TextField(
-                  controller: tokenController,
-                  decoration: const InputDecoration(labelText: 'Invite token'),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: firstNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'First name',
+                if (_isSuccess) ...[
+                  const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Account created successfully!',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Redirecting to your dashboard...'),
+                  const SizedBox(height: 24),
+                  const CircularProgressIndicator(),
+                ] else ...[
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    enabled: !_isLoading,
+                  ),
+                  TextField(
+                    controller: tokenController,
+                    decoration: const InputDecoration(
+                      labelText: 'Invite token',
+                    ),
+                    enabled: !_isLoading,
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: firstNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'First name',
+                          ),
+                          enabled: !_isLoading,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: lastNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Last name',
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: lastNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Last name',
+                          ),
+                          enabled: !_isLoading,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                TextField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _accept,
-                  child: const Text('Create account and join'),
-                ),
+                    ],
+                  ),
+                  TextField(
+                    controller: passwordController,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                    obscureText: true,
+                    enabled: !_isLoading,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _isLoading ? null : _accept,
+                    child:
+                        _isLoading
+                            ? const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text('Creating account...'),
+                              ],
+                            )
+                            : const Text('Create account and join'),
+                  ),
+                ],
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
