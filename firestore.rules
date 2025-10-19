@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read/write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Anyone authenticated can read events
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      // Only admins can create/update/delete events
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Anyone authenticated can read media
+    match /media/{mediaId} {
+      allow read: if request.auth != null;
+      // Anyone authenticated can upload media
+      allow create: if request.auth != null;
+      // Only the uploader can update/delete their media
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.uploaderUid;
+    }
+    
+     // Invites - allow public read for validation, only admins can create
+    match /invites/{inviteId} {
+      allow read: if true; // Allow public read for invite validation
+      allow create: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow update: if request.auth != null;
+    }
+    
+    // Email templates - only admins can create/read
+    match /emailTemplates/{templateId} {
+      allow read, write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Mail queue - only admins can create
+    match /mail/{mailId} {
+      allow create: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Allow read for debugging (optional)
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}  
