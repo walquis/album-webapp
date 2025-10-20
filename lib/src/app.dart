@@ -473,16 +473,6 @@ class MemberHome extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             ElevatedButton(
-              onPressed:
-                  () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MemberAcceptInviteScreen(),
-                    ),
-                  ),
-              child: const Text('Accept invite'),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
               onPressed: () => _showEventSelector(context),
               child: const Text('Upload media'),
             ),
