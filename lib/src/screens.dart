@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img;
 import 'metadata.dart';
 import 'gallery.dart';
 import 'image_utils.dart';
@@ -332,7 +331,7 @@ class _UploadScreenState extends State<UploadScreen> {
         );
 
         final uploadTask = originalRef.putData(
-          processedBytes!,
+          processedBytes,
           SettableMetadata(
             customMetadata: {
               'uploadedBy': user.uid,
@@ -361,7 +360,7 @@ class _UploadScreenState extends State<UploadScreen> {
         }
 
         // Save to Firestore
-        final meta = extractFromImageBytes(file.bytes!);
+        final meta = await extractFromImageBytes(file.bytes!);
         await FirebaseFirestore.instance.collection('media').add({
           'uploaderUid': user.uid,
           'uploaderEmail': user.email,

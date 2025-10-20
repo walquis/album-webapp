@@ -16,7 +16,7 @@ class EventGalleryScreen extends StatelessWidget {
             FirebaseFirestore.instance
                 .collection('media')
                 .where('eventId', isEqualTo: eventId)
-                .orderBy('uploadedAt', descending: true)
+                .orderBy('takenAt', descending: false)
                 .snapshots(),
         builder: (context, snapshot) {
           print('Gallery snapshot state: ${snapshot.connectionState}');
