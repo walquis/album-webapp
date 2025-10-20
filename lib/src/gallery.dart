@@ -245,17 +245,24 @@ class MediaCarouselScreen extends StatefulWidget {
 class _MediaCarouselScreenState extends State<MediaCarouselScreen> {
   late PageController _pageController;
   late int _currentIndex;
+  late FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+    _focusNode = FocusNode();
+    // Request focus after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -284,7 +291,16 @@ class _MediaCarouselScreenState extends State<MediaCarouselScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text('${_currentIndex + 1} of ${widget.mediaDocs.length}'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${_currentIndex + 1} of ${widget.mediaDocs.length}'),
+            const Text(
+              'Use arrow keys to navigate, ESC to exit',
+              style: TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -293,13 +309,19 @@ class _MediaCarouselScreenState extends State<MediaCarouselScreen> {
         ],
       ),
       body: RawKeyboardListener(
-        focusNode: FocusNode(),
+        focusNode: _focusNode,
         onKey: (RawKeyEvent event) {
           if (event is RawKeyDownEvent) {
+            print('Key pressed: ${event.logicalKey}');
             if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              print('Left arrow pressed');
               _previousImage();
             } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              print('Right arrow pressed');
               _nextImage();
+            } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+              print('Escape key pressed - closing carousel');
+              Navigator.of(context).pop();
             }
           }
         },
