@@ -54,23 +54,23 @@ class ImageUtils {
     return fileSize <= maxFileSize;
   }
 
-  /// Compresses an image to reduce file size
+  /// Compresses an image to reduce file size (optimized for speed)
   static Future<Uint8List> compressImage(
     Uint8List imageBytes, {
-    int quality = 85,
+    int quality = 50, // Very aggressive compression for speed
     int? maxWidth,
     int? maxHeight,
   }) async {
     try {
+      // Skip compression for very small files
+      if (imageBytes.length < 200 * 1024) {
+        // Less than 200KB
+        return imageBytes;
+      }
+
       // Decode the image
       final image = img.decodeImage(imageBytes);
       if (image == null) return imageBytes;
-
-      // Skip compression if image is already small enough
-      if (imageBytes.length < 500 * 1024) {
-        // Less than 500KB
-        return imageBytes;
-      }
 
       // Calculate new dimensions if maxWidth or maxHeight is specified
       int newWidth = image.width;
@@ -86,18 +86,19 @@ class ImageUtils {
         newHeight = maxHeight;
       }
 
-      // Resize if needed (use faster interpolation)
+      // Only resize if significantly smaller (skip small resizes for speed)
       img.Image resizedImage = image;
-      if (newWidth != image.width || newHeight != image.height) {
+      if ((newWidth < image.width * 0.8 || newHeight < image.height * 0.8) &&
+          (newWidth != image.width || newHeight != image.height)) {
         resizedImage = img.copyResize(
           image,
           width: newWidth,
           height: newHeight,
-          interpolation: img.Interpolation.linear, // Faster than cubic
+          interpolation: img.Interpolation.linear, // More reliable than nearest
         );
       }
 
-      // Encode with compression
+      // Encode with aggressive quality for speed
       return Uint8List.fromList(img.encodeJpg(resizedImage, quality: quality));
     } catch (e) {
       print('Error compressing image: $e');
@@ -125,16 +126,16 @@ class ImageUtils {
         thumbWidth = (size * image.width / image.height).round();
       }
 
-      // Generate thumbnail with faster interpolation
+      // Generate thumbnail with reliable interpolation
       final thumbnail = img.copyResize(
         image,
         width: thumbWidth,
         height: thumbHeight,
-        interpolation: img.Interpolation.linear, // Faster than cubic
+        interpolation: img.Interpolation.linear, // More reliable than nearest
       );
 
-      // Encode as JPEG for consistency with lower quality for speed
-      return Uint8List.fromList(img.encodeJpg(thumbnail, quality: 70));
+      // Encode as JPEG with balanced quality for speed and validity
+      return Uint8List.fromList(img.encodeJpg(thumbnail, quality: 60));
     } catch (e) {
       print('Error generating thumbnail: $e');
       return null;

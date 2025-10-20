@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -73,6 +74,15 @@ class EventGalleryScreen extends StatelessWidget {
                               size: 24,
                             ),
                           ),
+                        // Delete button (appears on hover)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: _HoverDeleteButton(
+                            onDelete:
+                                () => _showDeleteDialog(context, docs[index]),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -99,6 +109,91 @@ class EventGalleryScreen extends StatelessWidget {
             ),
       ),
     );
+  }
+
+  void _showDeleteDialog(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final fileName = data['fileName'] as String? ?? 'this image';
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Image'),
+            content: Text('Are you sure you want to delete "$fileName"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _deleteImage(context, doc);
+                },
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _deleteImage(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    try {
+      final data = doc.data();
+      final downloadUrl = data['downloadUrl'] as String?;
+      final thumbnailUrl = data['thumbnailUrl'] as String?;
+
+      // Delete from Firebase Storage
+      if (downloadUrl != null) {
+        try {
+          final ref = FirebaseStorage.instance.refFromURL(downloadUrl);
+          await ref.delete();
+          print('Deleted main image: $downloadUrl');
+        } catch (e) {
+          print('Error deleting main image: $e');
+        }
+      }
+
+      if (thumbnailUrl != null) {
+        try {
+          final thumbnailRef = FirebaseStorage.instance.refFromURL(
+            thumbnailUrl,
+          );
+          await thumbnailRef.delete();
+          print('Deleted thumbnail: $thumbnailUrl');
+        } catch (e) {
+          print('Error deleting thumbnail: $e');
+        }
+      }
+
+      // Delete from Firestore (this triggers rebuild)
+      await doc.reference.delete();
+      print('Deleted document from Firestore');
+
+      // Show success message if context is still mounted
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image deleted successfully')),
+        );
+      }
+    } catch (e) {
+      print('Error deleting image: $e');
+
+      // Show error message if context is still mounted
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting image: $e')));
+      }
+    }
   }
 
   Widget _buildMediaWidget({
@@ -483,6 +578,43 @@ class _MediaCarouselScreenState extends State<MediaCarouselScreen> {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HoverDeleteButton extends StatefulWidget {
+  const _HoverDeleteButton({required this.onDelete});
+
+  final VoidCallback onDelete;
+
+  @override
+  State<_HoverDeleteButton> createState() => _HoverDeleteButtonState();
+}
+
+class _HoverDeleteButtonState extends State<_HoverDeleteButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedOpacity(
+        opacity: _isHovered ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            onPressed: widget.onDelete,
+            icon: const Icon(Icons.close, color: Colors.white, size: 20),
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
         ),
       ),
     );

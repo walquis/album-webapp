@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'metadata.dart';
 import 'gallery.dart';
 import 'image_utils.dart';
@@ -254,12 +255,12 @@ class _UploadScreenState extends State<UploadScreen> {
                       'Compressing image ${i + 1}/${selectedFiles.length}: ${file.name}',
             );
 
-            // Compress image with faster settings
+            // Compress image with aggressive settings for maximum speed
             processedBytes = await ImageUtils.compressImage(
               file.bytes!,
-              quality: 75, // Reduced quality for faster processing
-              maxWidth: 1280, // Reduced max size for faster processing
-              maxHeight: 1280,
+              quality: 50, // Very aggressive compression for speed
+              maxWidth: 1000, // Smaller max size for faster processing
+              maxHeight: 1000,
             );
           }
 
@@ -286,7 +287,7 @@ class _UploadScreenState extends State<UploadScreen> {
         );
 
         final uploadTask = originalRef.putData(
-          processedBytes,
+          processedBytes!,
           SettableMetadata(
             customMetadata: {
               'uploadedBy': user.uid,
