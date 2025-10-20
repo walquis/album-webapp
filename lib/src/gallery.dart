@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class EventGalleryScreen extends StatelessWidget {
   const EventGalleryScreen({super.key, required this.eventId});
@@ -49,57 +50,53 @@ class EventGalleryScreen extends StatelessWidget {
                 );
                 print('File type: $fileType, File name: $fileName');
 
-                return SizedBox(
-                  width: 200, // Fixed width - never changes
-                  height: 200, // Fixed height - never changes
-                  child: Stack(
-                    children: [
-                      _buildMediaWidget(
-                        url: url,
-                        thumbnailUrl: thumbnailUrl,
-                        fileType: fileType,
-                        fileName: fileName,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          color: Colors.black54,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          child: Row(
-                            children: [
-                              if (fileType == 'video')
-                                const Icon(
-                                  Icons.play_arrow,
-                                  color: Colors.white,
-                                  size: 12,
-                                ),
-                              Expanded(
-                                child: Text(
-                                  uploaderEmail ?? '',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
+                return GestureDetector(
+                  onTap: () => _openCarousel(context, docs, index),
+                  child: SizedBox(
+                    width: 200, // Fixed width - never changes
+                    height: 200, // Fixed height - never changes
+                    child: Stack(
+                      children: [
+                        _buildMediaWidget(
+                          url: url,
+                          thumbnailUrl: thumbnailUrl,
+                          fileType: fileType,
+                          fileName: fileName,
                         ),
-                      ),
-                    ],
+                        if (fileType == 'video')
+                          const Positioned(
+                            bottom: 8,
+                            right: 8,
+                            child: Icon(
+                              Icons.play_arrow,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 );
               }),
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _openCarousel(
+    BuildContext context,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    int initialIndex,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) => MediaCarouselScreen(
+              mediaDocs: docs,
+              initialIndex: initialIndex,
+            ),
       ),
     );
   }
@@ -227,6 +224,245 @@ class EventGalleryScreen extends StatelessWidget {
     return Container(
       color: Colors.grey[200],
       child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class MediaCarouselScreen extends StatefulWidget {
+  const MediaCarouselScreen({
+    super.key,
+    required this.mediaDocs,
+    required this.initialIndex,
+  });
+
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> mediaDocs;
+  final int initialIndex;
+
+  @override
+  State<MediaCarouselScreen> createState() => _MediaCarouselScreenState();
+}
+
+class _MediaCarouselScreenState extends State<MediaCarouselScreen> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _previousImage() {
+    if (_currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _nextImage() {
+    if (_currentIndex < widget.mediaDocs.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text('${_currentIndex + 1} of ${widget.mediaDocs.length}'),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+      body: RawKeyboardListener(
+        focusNode: FocusNode(),
+        onKey: (RawKeyEvent event) {
+          if (event is RawKeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              _previousImage();
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              _nextImage();
+            }
+          }
+        },
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              itemCount: widget.mediaDocs.length,
+              itemBuilder: (context, index) {
+                final data = widget.mediaDocs[index].data();
+                final url = data['downloadUrl'] as String?;
+                final uploaderEmail = data['uploaderEmail'] as String?;
+                final fileType = data['fileType'] as String?;
+                final fileName = data['fileName'] as String?;
+
+                return Center(
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 3.0,
+                    child: Stack(
+                      children: [
+                        if (url != null)
+                          Image.network(
+                            url,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[800],
+                                child: const Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.error,
+                                        color: Colors.red,
+                                        size: 48,
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Error loading image',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                color: Colors.grey[800],
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        else
+                          Container(
+                            color: Colors.grey[800],
+                            child: const Center(
+                              child: Text(
+                                'No image available',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        // Uploader info overlay
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.7),
+                                ],
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                if (fileType == 'video')
+                                  const Icon(
+                                    Icons.play_arrow,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Uploaded by: ${uploaderEmail ?? 'Unknown'}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  fileName ?? '',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            // Navigation arrows
+            if (_currentIndex > 0)
+              Positioned(
+                left: 16,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: FloatingActionButton(
+                    onPressed: _previousImage,
+                    backgroundColor: Colors.black54,
+                    child: const Icon(
+                      Icons.arrow_back_ios,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            if (_currentIndex < widget.mediaDocs.length - 1)
+              Positioned(
+                right: 16,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: FloatingActionButton(
+                    onPressed: _nextImage,
+                    backgroundColor: Colors.black54,
+                    child: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
