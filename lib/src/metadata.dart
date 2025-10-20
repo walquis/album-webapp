@@ -13,9 +13,6 @@ Future<ExtractedMetadata> extractFromImageBytes(Uint8List bytes) async {
     // Parse EXIF data
     final data = await readExifFromBytes(bytes);
 
-    // Debug: Print all available EXIF tags
-    print('Available EXIF tags: ${data.keys.toList()}');
-
     DateTime? takenAt;
     Map<String, double>? geo;
 
@@ -25,16 +22,12 @@ Future<ExtractedMetadata> extractFromImageBytes(Uint8List bytes) async {
     // Try different EXIF date fields in order of preference
     if (data.containsKey('EXIF DateTimeOriginal')) {
       dateTimeStr = data['EXIF DateTimeOriginal']?.toString();
-      print('Found EXIF DateTimeOriginal: $dateTimeStr');
     } else if (data.containsKey('EXIF DateTime')) {
       dateTimeStr = data['EXIF DateTime']?.toString();
-      print('Found EXIF DateTime: $dateTimeStr');
     } else if (data.containsKey('EXIF DateTimeDigitized')) {
       dateTimeStr = data['EXIF DateTimeDigitized']?.toString();
-      print('Found EXIF DateTimeDigitized: $dateTimeStr');
     } else if (data.containsKey('Image DateTime')) {
       dateTimeStr = data['Image DateTime']?.toString();
-      print('Found Image DateTime: $dateTimeStr');
     }
 
     if (dateTimeStr != null) {
@@ -53,21 +46,14 @@ Future<ExtractedMetadata> extractFromImageBytes(Uint8List bytes) async {
               int.parse(timeParts[1]), // minute
               int.parse(timeParts[2]), // second
             );
-            print('Parsed takenAt: $takenAt');
           }
         }
       } catch (e) {
-        print('Error parsing EXIF date: $e');
+        // Error parsing EXIF date, continue without takenAt
       }
-    } else {
-      print('No EXIF date found in any standard field');
     }
 
     // Extract GPS coordinates
-    print(
-      'GPS-related tags: ${data.keys.where((key) => key.startsWith('GPS')).toList()}',
-    );
-
     if (data.containsKey('GPS GPSLatitude') &&
         data.containsKey('GPS GPSLongitude')) {
       try {
@@ -75,11 +61,6 @@ Future<ExtractedMetadata> extractFromImageBytes(Uint8List bytes) async {
         final lngValue = data['GPS GPSLongitude'];
         final latRef = data['GPS GPSLatitudeRef']?.toString();
         final lngRef = data['GPS GPSLongitudeRef']?.toString();
-
-        print('GPS Latitude raw: $latValue (${latValue.runtimeType})');
-        print('GPS Longitude raw: $lngValue (${lngValue.runtimeType})');
-        print('GPS LatitudeRef: $latRef');
-        print('GPS LongitudeRef: $lngRef');
 
         final lat = _parseGpsCoordinate(latValue);
         final lng = _parseGpsCoordinate(lngValue);
@@ -90,20 +71,15 @@ Future<ExtractedMetadata> extractFromImageBytes(Uint8List bytes) async {
           final finalLng = lngRef == 'W' ? -lng : lng;
 
           geo = {'lat': finalLat, 'lng': finalLng};
-          print('Parsed GPS coordinates: lat=$finalLat, lng=$finalLng');
-        } else {
-          print('Failed to parse GPS coordinates: lat=$lat, lng=$lng');
         }
       } catch (e) {
-        print('Error parsing GPS coordinates: $e');
+        // Error parsing GPS coordinates, continue without geo
       }
-    } else {
-      print('GPS coordinates not found in EXIF data');
     }
 
     return ExtractedMetadata(takenAt: takenAt, geo: geo);
   } catch (e) {
-    print('Error extracting EXIF data: $e');
+    // Error extracting EXIF data, return empty metadata
     return const ExtractedMetadata();
   }
 }
@@ -112,14 +88,11 @@ double? _parseGpsCoordinate(dynamic coordValue) {
   if (coordValue == null) return null;
 
   try {
-    print('Parsing GPS coordinate: $coordValue (${coordValue.runtimeType})');
-
     // Handle IfdTag with array values
     if (coordValue.toString().startsWith('[') &&
         coordValue.toString().endsWith(']')) {
       // Parse the string representation of the array: "[41, 52, 533/20]"
       final coordStr = coordValue.toString();
-      print('Parsing GPS coordinate array string: $coordStr');
 
       // Remove brackets and split by comma
       final cleanStr = coordStr.substring(1, coordStr.length - 1);
@@ -131,9 +104,7 @@ double? _parseGpsCoordinate(dynamic coordValue) {
         final seconds = _parseGpsPart(parts[2]);
 
         if (degrees != null && minutes != null && seconds != null) {
-          final result = degrees + (minutes / 60.0) + (seconds / 3600.0);
-          print('Parsed GPS coordinate: $result');
-          return result;
+          return degrees + (minutes / 60.0) + (seconds / 3600.0);
         }
       }
     }
@@ -145,9 +116,7 @@ double? _parseGpsCoordinate(dynamic coordValue) {
       final seconds = _parseGpsPart(coordValue[2].toString());
 
       if (degrees != null && minutes != null && seconds != null) {
-        final result = degrees + (minutes / 60.0) + (seconds / 3600.0);
-        print('Parsed GPS coordinate: $result');
-        return result;
+        return degrees + (minutes / 60.0) + (seconds / 3600.0);
       }
     }
 
@@ -159,8 +128,6 @@ double? _parseGpsCoordinate(dynamic coordValue) {
       coordStr = coordValue.toString();
     }
 
-    print('Parsing GPS coordinate string: $coordStr');
-
     final parts = coordStr.split(' ');
     if (parts.length >= 3) {
       final degrees = _parseGpsPart(parts[0]);
@@ -168,13 +135,11 @@ double? _parseGpsCoordinate(dynamic coordValue) {
       final seconds = _parseGpsPart(parts[2]);
 
       if (degrees != null && minutes != null && seconds != null) {
-        final result = degrees + (minutes / 60.0) + (seconds / 3600.0);
-        print('Parsed GPS coordinate: $result');
-        return result;
+        return degrees + (minutes / 60.0) + (seconds / 3600.0);
       }
     }
   } catch (e) {
-    print('Error parsing GPS coordinate: $e');
+    // Error parsing GPS coordinate, return null
   }
 
   return null;
@@ -193,7 +158,7 @@ double? _parseGpsPart(String part) {
       return double.parse(part);
     }
   } catch (e) {
-    print('Error parsing GPS part: $e');
+    // Error parsing GPS part, return null
   }
 
   return null;

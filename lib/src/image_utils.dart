@@ -102,7 +102,6 @@ class ImageUtils {
       // Return original if no resizing needed
       return imageBytes;
     } catch (e) {
-      print('Error resizing image: $e');
       return imageBytes; // Return original if resize fails
     }
   }
@@ -154,7 +153,6 @@ class ImageUtils {
       // Encode with aggressive quality for speed
       return Uint8List.fromList(img.encodeJpg(resizedImage, quality: quality));
     } catch (e) {
-      print('Error compressing image: $e');
       return imageBytes; // Return original if compression fails
     }
   }
@@ -207,7 +205,6 @@ class ImageUtils {
       // Encode as JPEG with high quality for better thumbnails
       return Uint8List.fromList(img.encodeJpg(thumbnail, quality: 90));
     } catch (e) {
-      print('Error generating thumbnail: $e');
       return null;
     }
   }

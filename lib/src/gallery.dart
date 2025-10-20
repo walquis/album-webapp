@@ -19,19 +19,13 @@ class EventGalleryScreen extends StatelessWidget {
                 .orderBy('takenAt', descending: false)
                 .snapshots(),
         builder: (context, snapshot) {
-          print('Gallery snapshot state: ${snapshot.connectionState}');
-          print('Gallery snapshot data: ${snapshot.data?.docs.length}');
-          print('Looking for eventId: $eventId');
-
           if (snapshot.hasError) {
-            print('Gallery error: ${snapshot.error}');
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (!snapshot.hasData)
             return const Center(child: CircularProgressIndicator());
           final docs = snapshot.data!.docs;
-          print('Found ${docs.length} media items');
 
           if (docs.isEmpty)
             return const Center(child: Text('No media yet for this event'));
@@ -43,13 +37,8 @@ class EventGalleryScreen extends StatelessWidget {
                 final data = docs[index].data();
                 final url = data['downloadUrl'] as String?;
                 final thumbnailUrl = data['thumbnailUrl'] as String?;
-                final uploaderEmail = data['uploaderEmail'] as String?;
                 final fileType = data['fileType'] as String?;
                 final fileName = data['fileName'] as String?;
-                print(
-                  'Gallery item $index: url=$url, thumbnail=$thumbnailUrl, uploader=$uploaderEmail',
-                );
-                print('File type: $fileType, File name: $fileName');
 
                 return GestureDetector(
                   onTap: () => _openCarousel(context, docs, index),
@@ -156,9 +145,8 @@ class EventGalleryScreen extends StatelessWidget {
         try {
           final ref = FirebaseStorage.instance.refFromURL(downloadUrl);
           await ref.delete();
-          print('Deleted main image: $downloadUrl');
         } catch (e) {
-          print('Error deleting main image: $e');
+          // Error deleting main image, continue
         }
       }
 
@@ -168,15 +156,13 @@ class EventGalleryScreen extends StatelessWidget {
             thumbnailUrl,
           );
           await thumbnailRef.delete();
-          print('Deleted thumbnail: $thumbnailUrl');
         } catch (e) {
-          print('Error deleting thumbnail: $e');
+          // Error deleting thumbnail, continue
         }
       }
 
       // Delete from Firestore (this triggers rebuild)
       await doc.reference.delete();
-      print('Deleted document from Firestore');
 
       // Show success message if context is still mounted
       if (context.mounted) {
@@ -185,8 +171,6 @@ class EventGalleryScreen extends StatelessWidget {
         );
       }
     } catch (e) {
-      print('Error deleting image: $e');
-
       // Show error message if context is still mounted
       if (context.mounted) {
         ScaffoldMessenger.of(
@@ -224,7 +208,6 @@ class EventGalleryScreen extends StatelessWidget {
                 height: 200,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  print('Video thumbnail load error for $thumbnailUrl: $error');
                   return _buildErrorWidget(thumbnailUrl);
                 },
                 loadingBuilder:
@@ -256,7 +239,6 @@ class EventGalleryScreen extends StatelessWidget {
           height: 200,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            print('Image load error for $displayUrl: $error');
             return _buildErrorWidget(displayUrl);
           },
           loadingBuilder: (context, child, loadingProgress) {
@@ -310,8 +292,7 @@ class EventGalleryScreen extends StatelessWidget {
             onPressed: () {
               // Open URL in new tab for debugging
               if (url.isNotEmpty) {
-                // This will help debug if the URL is accessible
-                print('Attempting to open URL: $url');
+                // Handle video tap - could open in new tab or show video player
               }
             },
             child: const Text('Test URL', style: TextStyle(fontSize: 8)),
@@ -413,15 +394,11 @@ class _MediaCarouselScreenState extends State<MediaCarouselScreen> {
         focusNode: _focusNode,
         onKey: (RawKeyEvent event) {
           if (event is RawKeyDownEvent) {
-            print('Key pressed: ${event.logicalKey}');
             if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-              print('Left arrow pressed');
               _previousImage();
             } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-              print('Right arrow pressed');
               _nextImage();
             } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-              print('Escape key pressed - closing carousel');
               Navigator.of(context).pop();
             }
           }

@@ -378,10 +378,8 @@ class _UploadScreenState extends State<UploadScreen> {
         });
 
         successCount++;
-        print('Successfully uploaded: ${file.name}');
       } catch (e) {
         errorCount++;
-        print('Error uploading ${file.name}: $e');
         setState(() => status = 'Error uploading ${file.name}: $e');
       }
     }
