@@ -33,63 +33,71 @@ class EventGalleryScreen extends StatelessWidget {
 
           if (docs.isEmpty)
             return const Center(child: Text('No media yet for this event'));
-          return GridView.builder(
-            padding: const EdgeInsets.all(8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data();
-              final url = data['downloadUrl'] as String?;
-              final thumbnailUrl = data['thumbnailUrl'] as String?;
-              final uploaderEmail = data['uploaderEmail'] as String?;
-              final fileType = data['fileType'] as String?;
-              final fileName = data['fileName'] as String?;
-              print(
-                'Gallery item $index: url=$url, thumbnail=$thumbnailUrl, uploader=$uploaderEmail',
-              );
-              print('File type: $fileType, File name: $fileName');
+          return SingleChildScrollView(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(docs.length, (index) {
+                final data = docs[index].data();
+                final url = data['downloadUrl'] as String?;
+                final thumbnailUrl = data['thumbnailUrl'] as String?;
+                final uploaderEmail = data['uploaderEmail'] as String?;
+                final fileType = data['fileType'] as String?;
+                final fileName = data['fileName'] as String?;
+                print(
+                  'Gallery item $index: url=$url, thumbnail=$thumbnailUrl, uploader=$uploaderEmail',
+                );
+                print('File type: $fileType, File name: $fileName');
 
-              return GridTile(
-                footer: Container(
-                  color: Colors.black54,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
-                  ),
-                  child: Row(
+                return SizedBox(
+                  width: 200, // Fixed width - never changes
+                  height: 200, // Fixed height - never changes
+                  child: Stack(
                     children: [
-                      if (fileType == 'video')
-                        const Icon(
-                          Icons.play_arrow,
-                          color: Colors.white,
-                          size: 12,
-                        ),
-                      Expanded(
-                        child: Text(
-                          uploaderEmail ?? '',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
+                      _buildMediaWidget(
+                        url: url,
+                        thumbnailUrl: thumbnailUrl,
+                        fileType: fileType,
+                        fileName: fileName,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          color: Colors.black54,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            children: [
+                              if (fileType == 'video')
+                                const Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                              Expanded(
+                                child: Text(
+                                  uploaderEmail ?? '',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                child: _buildMediaWidget(
-                  url: url,
-                  thumbnailUrl: thumbnailUrl,
-                  fileType: fileType,
-                  fileName: fileName,
-                ),
-              );
-            },
+                );
+              }),
+            ),
           );
         },
       ),
@@ -116,15 +124,17 @@ class EventGalleryScreen extends StatelessWidget {
         children: [
           // Video thumbnail or placeholder
           if (thumbnailUrl != null)
-            Image.network(
-              thumbnailUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                print('Video thumbnail load error for $thumbnailUrl: $error');
-                return _buildErrorWidget(thumbnailUrl);
-              },
-              loadingBuilder:
-                  (context, child, loadingProgress) => _buildLoadingWidget(),
+            ClipRect(
+              child: Image.network(
+                thumbnailUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  print('Video thumbnail load error for $thumbnailUrl: $error');
+                  return _buildErrorWidget(thumbnailUrl);
+                },
+                loadingBuilder:
+                    (context, child, loadingProgress) => _buildLoadingWidget(),
+              ),
             )
           else
             Container(
@@ -143,38 +153,40 @@ class EventGalleryScreen extends StatelessWidget {
       );
     } else {
       // Image
-      return Image.network(
-        displayUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          print('Image load error for $displayUrl: $error');
-          return _buildErrorWidget(displayUrl);
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          final progress =
-              loadingProgress.cumulativeBytesLoaded /
-              (loadingProgress.expectedTotalBytes ?? 1);
-          return Container(
-            color: Colors.grey[200],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 8),
-                Text(
-                  'Loading... ${(progress * 100).toInt()}%',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Large image - may take a moment',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          );
-        },
+      return ClipRect(
+        child: Image.network(
+          displayUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print('Image load error for $displayUrl: $error');
+            return _buildErrorWidget(displayUrl);
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            final progress =
+                loadingProgress.cumulativeBytesLoaded /
+                (loadingProgress.expectedTotalBytes ?? 1);
+            return Container(
+              color: Colors.grey[200],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Loading... ${(progress * 100).toInt()}%',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Large image - may take a moment',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       );
     }
   }

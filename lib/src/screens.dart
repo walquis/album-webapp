@@ -361,191 +361,210 @@ class _UploadScreenState extends State<UploadScreen> {
       appBar: AppBar(title: const Text('Upload')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // File selection section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Select Files',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Supported: Images (JPEG, PNG, GIF, WebP) and Videos (MP4, AVI, MOV, etc.)\nMax size: 10MB per file',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: isProcessing ? null : _pickFiles,
-                          icon: const Icon(Icons.folder_open),
-                          label: const Text('Pick Files'),
-                        ),
-                        if (selectedFiles.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: isProcessing ? null : _clearSelection,
-                            icon: const Icon(Icons.clear),
-                            label: const Text('Clear'),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight:
+                  MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  kToolbarHeight -
+                  32, // Account for app bar and padding
             ),
-
-            // Selected files list
-            if (selectedFiles.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Selected Files (${selectedFiles.length})',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 200,
-                        child: ListView.builder(
-                          itemCount: selectedFiles.length,
-                          itemBuilder: (context, index) {
-                            final file = selectedFiles[index];
-                            final fileSize = ImageUtils.formatFileSize(
-                              file.bytes!.length,
-                            );
-                            final fileIcon = ImageUtils.getFileTypeIcon(
-                              file.name,
-                            );
-
-                            return ListTile(
-                              leading: Text(
-                                fileIcon,
-                                style: const TextStyle(fontSize: 24),
-                              ),
-                              title: Text(
-                                file.name,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: Text(fileSize),
-                              trailing:
-                                  ImageUtils.isImage(file.name)
-                                      ? const Icon(
-                                        Icons.image,
-                                        color: Colors.blue,
-                                      )
-                                      : const Icon(
-                                        Icons.videocam,
-                                        color: Colors.red,
-                                      ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-
-            // Upload section
-            if (selectedFiles.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Upload',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      if (widget.eventId != null)
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // File selection section
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          'Uploading to event: ${widget.eventId}',
+                          'Select Files',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Supported: Images (JPEG, PNG, GIF, WebP) and Videos (MP4, AVI, MOV, etc.)\nMax size: 10MB per file',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: isProcessing ? null : _uploadFiles,
-                          icon:
-                              isProcessing
-                                  ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                  : const Icon(Icons.cloud_upload),
-                          label: Text(
-                            isProcessing ? 'Processing...' : 'Upload Files',
-                          ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: isProcessing ? null : _pickFiles,
+                              icon: const Icon(Icons.folder_open),
+                              label: const Text('Pick Files'),
+                            ),
+                            if (selectedFiles.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed:
+                                    isProcessing ? null : _clearSelection,
+                                icon: const Icon(Icons.clear),
+                                label: const Text('Clear'),
+                              ),
+                            ],
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
 
-            // Status section
-            if (status != null) ...[
-              const SizedBox(height: 16),
-              Card(
-                color:
-                    status!.contains('Error') || status!.contains('Invalid')
-                        ? Colors.red[50]
-                        : Colors.blue[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
+                // Selected files list
+                if (selectedFiles.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selected Files (${selectedFiles.length})',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  MediaQuery.of(context).size.height *
+                                  0.3, // Max 30% of screen height
+                              minHeight: 100,
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: selectedFiles.length,
+                              itemBuilder: (context, index) {
+                                final file = selectedFiles[index];
+                                final fileSize = ImageUtils.formatFileSize(
+                                  file.bytes!.length,
+                                );
+                                final fileIcon = ImageUtils.getFileTypeIcon(
+                                  file.name,
+                                );
+
+                                return ListTile(
+                                  leading: Text(
+                                    fileIcon,
+                                    style: const TextStyle(fontSize: 24),
+                                  ),
+                                  title: Text(
+                                    file.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(fileSize),
+                                  trailing:
+                                      ImageUtils.isImage(file.name)
+                                          ? const Icon(
+                                            Icons.image,
+                                            color: Colors.blue,
+                                          )
+                                          : const Icon(
+                                            Icons.videocam,
+                                            color: Colors.red,
+                                          ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Upload section
+                if (selectedFiles.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Upload',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          if (widget.eventId != null)
+                            Text(
+                              'Uploading to event: ${widget.eventId}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: isProcessing ? null : _uploadFiles,
+                              icon:
+                                  isProcessing
+                                      ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                      : const Icon(Icons.cloud_upload),
+                              label: Text(
+                                isProcessing ? 'Processing...' : 'Upload Files',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Status section
+                if (status != null) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    color:
                         status!.contains('Error') || status!.contains('Invalid')
-                            ? Icons.error
-                            : Icons.info,
-                        color:
+                            ? Colors.red[50]
+                            : Colors.blue[50],
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(
                             status!.contains('Error') ||
                                     status!.contains('Invalid')
-                                ? Colors.red
-                                : Colors.blue,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          status!,
-                          style: TextStyle(
+                                ? Icons.error
+                                : Icons.info,
                             color:
                                 status!.contains('Error') ||
                                         status!.contains('Invalid')
-                                    ? Colors.red[800]
-                                    : Colors.blue[800],
+                                    ? Colors.red
+                                    : Colors.blue,
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              status!,
+                              style: TextStyle(
+                                color:
+                                    status!.contains('Error') ||
+                                            status!.contains('Invalid')
+                                        ? Colors.red[800]
+                                        : Colors.blue[800],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ],
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
