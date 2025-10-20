@@ -63,32 +63,78 @@ class _CreateEventButton extends StatefulWidget {
 
 class _CreateEventButtonState extends State<_CreateEventButton> {
   Future<void> _create() async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
+    final nameController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('New event'),
-            content: TextField(
-              controller: controller,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, controller.text.trim()),
-                child: const Text('Create'),
-              ),
-            ],
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: const Text('New event'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Event name',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Text('Start date: '),
+                          TextButton(
+                            onPressed: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (date != null) {
+                                setState(() {
+                                  selectedDate = date;
+                                });
+                              }
+                            },
+                            child: Text(
+                              '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        final name = nameController.text.trim();
+                        if (name.isNotEmpty) {
+                          Navigator.pop(context, {
+                            'name': name,
+                            'startAt': selectedDate,
+                          });
+                        }
+                      },
+                      child: const Text('Create'),
+                    ),
+                  ],
+                ),
           ),
     );
-    if (name == null || name.isEmpty) return;
+
+    if (result == null) return;
+
     await FirebaseFirestore.instance.collection('events').add({
-      'name': name,
-      'startAt': Timestamp.now(),
+      'name': result['name'],
+      'startAt': Timestamp.fromDate(result['startAt']),
       'createdBy': FirebaseAuth.instance.currentUser?.uid,
     });
   }
@@ -492,9 +538,29 @@ class _UploadScreenState extends State<UploadScreen> {
                           ),
                           const SizedBox(height: 8),
                           if (widget.eventId != null)
-                            Text(
-                              'Uploading to event: ${widget.eventId}',
-                              style: Theme.of(context).textTheme.bodySmall,
+                            FutureBuilder<
+                              DocumentSnapshot<Map<String, dynamic>>
+                            >(
+                              future:
+                                  FirebaseFirestore.instance
+                                      .collection('events')
+                                      .doc(widget.eventId)
+                                      .get(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  final eventName =
+                                      snapshot.data?.data()?['name'] as String?;
+                                  return Text(
+                                    'Uploading to event: ${eventName ?? 'Unknown Event'}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  );
+                                }
+                                return Text(
+                                  'Uploading to event: ${widget.eventId}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                );
+                              },
                             ),
                           const SizedBox(height: 16),
                           SizedBox(
