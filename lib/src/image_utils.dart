@@ -106,57 +106,6 @@ class ImageUtils {
     }
   }
 
-  /// Compresses an image to reduce file size (optimized for speed)
-  static Future<Uint8List> compressImage(
-    Uint8List imageBytes, {
-    int quality = 50, // Very aggressive compression for speed
-    int? maxWidth,
-    int? maxHeight,
-  }) async {
-    try {
-      // Skip compression for very small files
-      if (imageBytes.length < 200 * 1024) {
-        // Less than 200KB
-        return imageBytes;
-      }
-
-      // Decode the image
-      final image = img.decodeImage(imageBytes);
-      if (image == null) return imageBytes;
-
-      // Calculate new dimensions if maxWidth or maxHeight is specified
-      int newWidth = image.width;
-      int newHeight = image.height;
-
-      if (maxWidth != null && image.width > maxWidth) {
-        newHeight = (image.height * maxWidth / image.width).round();
-        newWidth = maxWidth;
-      }
-
-      if (maxHeight != null && newHeight > maxHeight) {
-        newWidth = (newWidth * maxHeight / newHeight).round();
-        newHeight = maxHeight;
-      }
-
-      // Only resize if significantly smaller (skip small resizes for speed)
-      img.Image resizedImage = image;
-      if ((newWidth < image.width * 0.8 || newHeight < image.height * 0.8) &&
-          (newWidth != image.width || newHeight != image.height)) {
-        resizedImage = img.copyResize(
-          image,
-          width: newWidth,
-          height: newHeight,
-          interpolation: img.Interpolation.linear, // More reliable than nearest
-        );
-      }
-
-      // Encode with aggressive quality for speed
-      return Uint8List.fromList(img.encodeJpg(resizedImage, quality: quality));
-    } catch (e) {
-      return imageBytes; // Return original if compression fails
-    }
-  }
-
   /// Generates a thumbnail for an image
   static Future<Uint8List?> generateThumbnail(
     Uint8List imageBytes, {
