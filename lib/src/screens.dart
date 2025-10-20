@@ -298,15 +298,14 @@ class _UploadScreenState extends State<UploadScreen> {
             setState(
               () =>
                   status =
-                      'Compressing image ${i + 1}/${selectedFiles.length}: ${file.name}',
+                      'Resizing image ${i + 1}/${selectedFiles.length}: ${file.name}',
             );
 
-            // Compress image with aggressive settings for maximum speed
-            processedBytes = await ImageUtils.compressImage(
+            // Resize image without compression for maximum speed and quality
+            processedBytes = await ImageUtils.resizeImage(
               file.bytes!,
-              quality: 50, // Very aggressive compression for speed
-              maxWidth: 1000, // Smaller max size for faster processing
-              maxHeight: 1000,
+              maxWidth: 1200, // Reasonable max size
+              maxHeight: 1200,
             );
           }
 

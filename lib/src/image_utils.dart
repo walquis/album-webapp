@@ -54,6 +54,59 @@ class ImageUtils {
     return fileSize <= maxFileSize;
   }
 
+  /// Resizes an image without compression (preserves quality)
+  static Future<Uint8List> resizeImage(
+    Uint8List imageBytes, {
+    int? maxWidth,
+    int? maxHeight,
+  }) async {
+    try {
+      // Skip resizing for very small files
+      if (imageBytes.length < 500 * 1024) {
+        // Less than 500KB
+        return imageBytes;
+      }
+
+      // Decode the image
+      final image = img.decodeImage(imageBytes);
+      if (image == null) return imageBytes;
+
+      // Calculate new dimensions if maxWidth or maxHeight is specified
+      int newWidth = image.width;
+      int newHeight = image.height;
+
+      if (maxWidth != null && image.width > maxWidth) {
+        newHeight = (image.height * maxWidth / image.width).round();
+        newWidth = maxWidth;
+      }
+
+      if (maxHeight != null && newHeight > maxHeight) {
+        newWidth = (newWidth * maxHeight / newHeight).round();
+        newHeight = maxHeight;
+      }
+
+      // Only resize if significantly smaller
+      if ((newWidth < image.width * 0.8 || newHeight < image.height * 0.8) &&
+          (newWidth != image.width || newHeight != image.height)) {
+        final resizedImage = img.copyResize(
+          image,
+          width: newWidth,
+          height: newHeight,
+          interpolation: img.Interpolation.linear,
+        );
+
+        // Encode with high quality (no compression)
+        return Uint8List.fromList(img.encodeJpg(resizedImage, quality: 95));
+      }
+
+      // Return original if no resizing needed
+      return imageBytes;
+    } catch (e) {
+      print('Error resizing image: $e');
+      return imageBytes; // Return original if resize fails
+    }
+  }
+
   /// Compresses an image to reduce file size (optimized for speed)
   static Future<Uint8List> compressImage(
     Uint8List imageBytes, {
@@ -134,8 +187,8 @@ class ImageUtils {
         interpolation: img.Interpolation.linear, // More reliable than nearest
       );
 
-      // Encode as JPEG with balanced quality for speed and validity
-      return Uint8List.fromList(img.encodeJpg(thumbnail, quality: 60));
+      // Encode as JPEG with high quality for better thumbnails
+      return Uint8List.fromList(img.encodeJpg(thumbnail, quality: 90));
     } catch (e) {
       print('Error generating thumbnail: $e');
       return null;
