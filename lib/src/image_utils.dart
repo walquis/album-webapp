@@ -169,22 +169,39 @@ class ImageUtils {
       final image = img.decodeImage(imageBytes);
       if (image == null) return null;
 
-      // Calculate thumbnail dimensions maintaining aspect ratio
-      int thumbWidth = size;
-      int thumbHeight = size;
+      // Calculate crop dimensions to fill the square
+      int cropSize = size;
+      int cropX = 0;
+      int cropY = 0;
 
       if (image.width > image.height) {
-        thumbHeight = (size * image.height / image.width).round();
+        // Landscape: crop width to match height
+        cropSize = image.height;
+        cropX = (image.width - image.height) ~/ 2; // Center the crop
+      } else if (image.height > image.width) {
+        // Portrait: crop height to match width
+        cropSize = image.width;
+        cropY = (image.height - image.width) ~/ 2; // Center the crop
       } else {
-        thumbWidth = (size * image.width / image.height).round();
+        // Square: use as-is
+        cropSize = image.width;
       }
 
-      // Generate thumbnail with reliable interpolation
-      final thumbnail = img.copyResize(
+      // Crop to square first
+      final croppedImage = img.copyCrop(
         image,
-        width: thumbWidth,
-        height: thumbHeight,
-        interpolation: img.Interpolation.linear, // More reliable than nearest
+        x: cropX,
+        y: cropY,
+        width: cropSize,
+        height: cropSize,
+      );
+
+      // Generate thumbnail by resizing the cropped square
+      final thumbnail = img.copyResize(
+        croppedImage,
+        width: size,
+        height: size,
+        interpolation: img.Interpolation.linear,
       );
 
       // Encode as JPEG with high quality for better thumbnails

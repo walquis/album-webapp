@@ -216,9 +216,12 @@ class EventGalleryScreen extends StatelessWidget {
         children: [
           // Video thumbnail or placeholder
           if (thumbnailUrl != null)
-            ClipRect(
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
               child: Image.network(
                 thumbnailUrl,
+                width: 200,
+                height: 200,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   print('Video thumbnail load error for $thumbnailUrl: $error');
@@ -245,9 +248,12 @@ class EventGalleryScreen extends StatelessWidget {
       );
     } else {
       // Image
-      return ClipRect(
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
         child: Image.network(
           displayUrl,
+          width: 200,
+          height: 200,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             print('Image load error for $displayUrl: $error');
